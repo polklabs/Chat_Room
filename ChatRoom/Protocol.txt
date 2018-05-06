@@ -1,0 +1,25 @@
+connect
+c -> chatroom name
+c <- NEW
+c -> ACK
+c <- victoria;andrew;
+c -> username
+c <->
+
+
+connect
+c -> chatroom name
+c <- NEW
+c -> NACK
+c -> chatroom name
+c <- ACK
+c <- victoria;andrew;
+c -> username
+c <->
+
+connect
+c -> chatroom name
+c <- ACK
+c <- victoria;andrew;
+c -> username
+c <->
