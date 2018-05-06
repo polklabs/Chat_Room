@@ -2,6 +2,9 @@ package chatroom;
 
 import java.net.*;
 import java.io.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Main class for chat room client. Sends user to chat room and sends messages.
@@ -10,9 +13,13 @@ import java.io.*;
  */
 public class ChatRoom {
 
-    /**IP address that the client connects to*/
+    /**IP address that the client connects to.
+     * Must point to IP that the Server is listening on.
+     */
     private static final    String IP      = "localhost";
-    /**Port number that the client connects to*/
+    /**Port number that the client connects to.
+     * Must point to port that the server is listening on.
+     */
     private static final    int    PORT    = 3301;
     /**Name of the chat room that the client is in*/
     private static          String room;
@@ -48,8 +55,8 @@ public class ChatRoom {
                 out.writeUTF(room);
 
                 String newR;
-                if(!(newR = in.readUTF()).contains("NACK")){
-                    if(newR.contains("NEW")){
+                if(!(newR = in.readUTF()).equals("NACK")){
+                    if(newR.equals("NEW")){
                         System.out.println("::Chatroom does not exist.");
                         System.out.print("::Create room?(y/n) ");
                         if(user.readLine().toUpperCase().equals("Y")){
@@ -70,13 +77,14 @@ public class ChatRoom {
                 //System.out.println("::Not a valid chatroom.");
             }
 
-            String users = in.readUTF();
-
+            //Set of all usernames currently in the chat room, Set avoids duplicate name errors
+            Set<String> usernames = new HashSet<String>(Arrays.asList(in.readUTF().split(";")));
+            
             //Enter username
             while(true){
                 System.out.print("::Enter a username: ");
                 username = user.readLine();
-                if(!users.contains(username)){
+                if(!usernames.contains(username)){
                     break;
                 }
                 System.out.println("::Username taken.");

@@ -87,7 +87,7 @@ public class ChatRoomServer {
             }else{
                 //Creates a new room
                 out.writeUTF("NEW");
-                if(!in.readUTF().contains("NACK")){
+                if(!in.readUTF().equals("NACK")){
                     ChatRoom newRm = new ChatRoom(room);
                     rooms.put(room, newRm);
                     

@@ -49,7 +49,7 @@ public class User extends Thread{
                     return;
                 }
                 
-                message = username+": "+m1+"\n";
+                message = username+": "+m1;
 
                 for(String user : room.users){
                     if(!user.equals(username)){
