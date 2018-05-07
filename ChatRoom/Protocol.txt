@@ -20,6 +20,6 @@ c <->
 connect
 c -> chatroom name
 c <- ACK
-c <- victoria;andrew;
+c <- user1;user2;
 c -> username
 c <->
