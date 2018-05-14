@@ -143,7 +143,6 @@ public final class dataEncrypt {
      * @throws java.security.InvalidKeyException
      * @throws javax.crypto.IllegalBlockSizeException
      * @throws javax.crypto.BadPaddingException
-     * @see public String encryptText(String mag)
      */
     public String encryptText(String msg, boolean forServer) 
             throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

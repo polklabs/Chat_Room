@@ -42,7 +42,7 @@ public class ChatRoom {
     * Private variables
     ***************************************************************************/
     
-    private static final    String IP      = "pi1.polklabs.com";   //pi1.polklabs.com
+    private static final    String IP      = "localhost";   //pi1.polklabs.com
     private static final    int    PORT    = 3301;          //Server port
     private          String room;                    //Room the user joins
     private          String username;                //Users username
@@ -54,7 +54,7 @@ public class ChatRoom {
     //Streams
     // TODO Replace inFromUser with input
     private final BufferedReader      inFromUser;
-    private final DataInputStream     input;
+    //private final DataInputStream     input;
     private DataOutputStream    out;
     private DataInputStream     in;
     
@@ -89,7 +89,7 @@ public class ChatRoom {
         DE = new dataEncrypt(1024, this);
         //Input from user
         inFromUser = new BufferedReader(new InputStreamReader(System.in));
-        input = null;
+        //input = null;
     }
     
     /***************************************************************************
@@ -307,7 +307,6 @@ public class ChatRoom {
             //******************************************************************
             
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException | IOException | NoSuchAlgorithmException | InvalidKeySpecException ex) {
-            //Logger.getLogger(ChatRoom.class.getName()).log(Level.SEVERE, null, ex);
             errorMessage = ("Error: "+ex);
             return false;
         }
@@ -483,7 +482,7 @@ public class ChatRoom {
         System.out.println("::Type \"/close\" to close connection.\n");
         //TODO: add other funtions for user.
         //----------------------
-        
+       
         //Wait for input from the user
         while(!closed) {
             try{
@@ -510,6 +509,8 @@ public class ChatRoom {
                 break;
             }
         }
+        closed = false;
+        kicked = false;
         sock.close();
     }
     

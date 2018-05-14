@@ -7,9 +7,12 @@ import java.net.*;
 import java.io.*;
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * Main class, listens for incoming connections and sets up the new user.
@@ -25,9 +28,6 @@ public class ChatRoomServer {
     /**Dictionary of all the chat rooms*/
     public static Map<String, ChatRoom> rooms = new HashMap<>();
     
-    public static Map<String, Integer> popular = new HashMap<>();
-    public static ArrayList<String> popularNames = new ArrayList<>();
-    
     public static dataEncrypt DE;
     
     /***************************************************************************
@@ -36,7 +36,8 @@ public class ChatRoomServer {
     
     private static final    String          SERVER_IP   = "pi1.polklabs.com";
     private static final    int             SERVER_PORT = 3301;
-    private static final    int             MAX_IN_POPULAR = 10;
+    private static final    int             MAX = 251;
+    private static final    int             MAX_POPULAR = 10;
     private static          ServerSocket    serverSock;
     private static boolean  error;
     
@@ -53,7 +54,8 @@ public class ChatRoomServer {
         
         while(true){
             try{
-                serverSock = new ServerSocket(SERVER_PORT, 0, InetAddress.getByName(SERVER_IP));
+                serverSock = new ServerSocket(SERVER_PORT);
+                //serverSock = new ServerSocket(SERVER_PORT, 0, InetAddress.getByName(SERVER_IP));
 
                 System.out.println("Server started on: "+serverSock.getInetAddress()+":"+Integer.toString(serverSock.getLocalPort()));
 
@@ -89,7 +91,7 @@ public class ChatRoomServer {
      * @param sock The socket of the new user.
      * @throws IOException Don't they all?
      */
-    public static void newUser(Socket sock) throws Exception{
+    public static void newUser(Socket sock) throws Exception {
         DataOutputStream out = new DataOutputStream(sock.getOutputStream());
         DataInputStream in = new DataInputStream(sock.getInputStream());
 
@@ -103,8 +105,22 @@ public class ChatRoomServer {
         //----------------------------------------------------------------------
         
         String popRooms = "";
-        for(String s : popularNames){
-            popRooms += s+" "+popular.get(s)+";";
+        
+        Comparator<Entry<String, ChatRoom>> valueComparator = (Entry<String, ChatRoom> e1, Entry<String, ChatRoom> e2) -> {
+            int v1 = e1.getValue().users.size()-1;
+            int v2 = e2.getValue().users.size()-1;
+            return v2 - v1;
+        };
+        Set<Entry<String, ChatRoom>> entries = rooms.entrySet();
+        ArrayList<Entry<String, ChatRoom>> listOfEntries = new ArrayList<>(entries);
+        Collections.sort(listOfEntries, valueComparator);
+        int i = 0;
+        for(Entry<String, ChatRoom> pair : listOfEntries){
+            popRooms += pair.getKey()+" "+(pair.getValue().users.size()-1)+";";
+            i++;
+            if(i >= MAX_POPULAR){
+                break;
+            }
         }
         if(popRooms.length() > 0)
             popRooms = popRooms.substring(0, popRooms.length()-1);
@@ -158,32 +174,13 @@ public class ChatRoomServer {
         out.writeUTF(DE.encryptText(rooms.get(room).getUsers(), pubKey));
         out.writeUTF(DE.encryptText(rooms.get(room).getKeys(), pubKey));
         
-        rooms.get(room).addUser(username, sock, clientPublicKey);
-        if(rooms.get(room).isNew){
-            rooms.get(room).start();
-        }
-        
-        int size = rooms.get(room).users.size();
-        
-        for(int i = 0; i < MAX_IN_POPULAR; i++){
-            if(i >= popularNames.size()){
-                popularNames.add(room);
-                popular.put(room, size);
-                break;
+        if(rooms.get(room).users.size() < MAX){
+            rooms.get(room).addUser(username, sock, clientPublicKey);
+            if(rooms.get(room).isNew){
+                rooms.get(room).start();
             }
-            
-            String name = popularNames.get(i);
-            int pos = popularNames.indexOf(name);
-            if(size > popular.get(name)){
-                popularNames.add(pos, room);
-                popular.put(room, size);
-                break;
-            }
-        }
-        
-        while(popularNames.size() >= MAX_IN_POPULAR){
-            popular.remove(popularNames.get(popularNames.size()));
-            popularNames.remove(popularNames.size());
+        }else{
+            sock.close();
         }
     }
     
@@ -192,8 +189,6 @@ public class ChatRoomServer {
      */
     public static void removeRoom(String name){
         rooms.remove(name);
-        popular.remove(name);
-        popularNames.remove(name);
     }
     
     /***************************************************************************

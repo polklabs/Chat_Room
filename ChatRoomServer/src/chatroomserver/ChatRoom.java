@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 
@@ -110,6 +108,9 @@ public class ChatRoom extends Thread {
      * @param print if the server should print the message to the log
      */
     public void messageAll(String message, boolean print){
+        if(print){
+            System.out.println(name+"::"+message);
+        }
         users.forEach((user) -> {
             try{
                 if(!user.equals("Server")){
@@ -117,13 +118,10 @@ public class ChatRoom extends Thread {
                 }
             }catch(IOException e){
                 removeUser(user);
-            }catch(Exception e){
+            }catch(InvalidKeyException | BadPaddingException | IllegalBlockSizeException e){
                 System.out.println(e);
             }
         });
-        if(print){
-            System.out.println(name+"::"+message);
-        }
     }
     
     /**
@@ -138,7 +136,7 @@ public class ChatRoom extends Thread {
             }
         }catch(IOException e){
             removeUser(user);
-        }catch(Exception e) {
+        }catch(InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             System.out.println(e);
         }
     }
@@ -147,7 +145,6 @@ public class ChatRoom extends Thread {
      * @param username Username for the new user.
      * @param newSock The socket of the new user.
      * @param publicKey public key for the user being added
-     * @exception Exception placeholder
      */
     public void addUser(String username, Socket newSock, String publicKey) {
         try{
@@ -161,17 +158,23 @@ public class ChatRoom extends Thread {
             
             //Message all new userList and keys
             messageAll("Server:/*"+getUsers(), false);
-            messageAll("Server:"+getKeys(), false);
+           try{
+               messageAll("Server:"+getKeys(), false);
+            }catch(NoSuchAlgorithmException | InvalidKeySpecException e){
+                messageAll("Server:*", false);
+            }
             
             if(username.equals(users.get(1))){
                 messageOne("Server: You are the Moderator. Type \"/kick \'username\'\" to kick a user out of the chatroom.", username);
             }
             
-        }catch(IOException | NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e){
+        }catch(IOException e){
             if(outs.containsKey(username)){
                 outs.remove(username);
             }
             System.out.println(e);
+        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | InvalidKeySpecException ex) {
+            System.out.println(ex);
         }
     }
     
@@ -185,6 +188,7 @@ public class ChatRoom extends Thread {
         socks.remove(username);
         threads.remove(username);
         keys.remove(username);
+        
         messageAll("Server: \""+username+"\" has left.", true);
         
         if(mod && users.size() >= 2)
@@ -193,7 +197,7 @@ public class ChatRoom extends Thread {
         messageAll("Server:/*"+getUsers(), false);
         try{
             messageAll("Server:"+getKeys(), false);
-        }catch(Exception e){
+        }catch(NoSuchAlgorithmException | InvalidKeySpecException e){
             messageAll("Server:*", false);
         }
     }
@@ -224,7 +228,7 @@ public class ChatRoom extends Thread {
         messageAll("Server:/*"+getUsers(), false);
         try{
             messageAll("Server:"+getKeys(), false);
-        }catch(Exception e){
+        }catch(NoSuchAlgorithmException | InvalidKeySpecException e){
             messageAll("Server:*", false);
         }
     }
@@ -242,8 +246,9 @@ public class ChatRoom extends Thread {
     
     /**
      * Returns string of all public keys in the chat room
-     * @return String of all public keys, no delimiters
-     * @throws Exception 
+     * @return String of all public keys, no delimiters 
+     * @throws java.security.NoSuchAlgorithmException 
+     * @throws java.security.spec.InvalidKeySpecException 
      */
     public String getKeys() 
             throws NoSuchAlgorithmException, InvalidKeySpecException {

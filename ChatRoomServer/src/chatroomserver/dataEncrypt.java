@@ -88,7 +88,10 @@ public final class dataEncrypt {
      * over TCP.
      * Singly encrypts the bytes to send from the server
      * @param bytes the bytes to be encrypted
+     * @param pubKey
+     * @param id
      * @return The string of the encrypted bytes
+     * @throws java.io.UnsupportedEncodingException
      * @throws InvalidKeyException
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException 
@@ -129,6 +132,7 @@ public final class dataEncrypt {
     /**Decrypts a string twice, Once with the server's private key. Then with the 
      * public of whoever the message was sent from.
      * @param msg the doubly encrypted string that the user received.
+     * @param pubKey
      * @return the decrypted data in string format.
      * @throws InvalidKeyException
      * @throws IllegalBlockSizeException
@@ -241,6 +245,13 @@ public final class dataEncrypt {
     * Static methods
     ***************************************************************************/
     
+    /**
+     * 
+     * @param pubKey
+     * @return
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeySpecException 
+     */
     public static String PublicKeyToString(PublicKey pubKey) 
             throws NoSuchAlgorithmException, InvalidKeySpecException {
 

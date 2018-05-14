@@ -103,10 +103,7 @@ public class client implements Runnable{
                 break;
             }catch(NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e){
                 System.out.println("::Could not receive message.");
-                e.printStackTrace();
             }
         }
-        
-        parent.closed = true;
     }
 }
