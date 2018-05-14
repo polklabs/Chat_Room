@@ -54,8 +54,8 @@ public class ChatRoomServer {
         
         while(true){
             try{
-                serverSock = new ServerSocket(SERVER_PORT);
-                //serverSock = new ServerSocket(SERVER_PORT, 0, InetAddress.getByName(SERVER_IP));
+                //serverSock = new ServerSocket(SERVER_PORT);
+                serverSock = new ServerSocket(SERVER_PORT, 0, InetAddress.getByName(SERVER_IP));
 
                 System.out.println("Server started on: "+serverSock.getInetAddress()+":"+Integer.toString(serverSock.getLocalPort()));
 

@@ -42,7 +42,7 @@ public class ChatRoom {
     * Private variables
     ***************************************************************************/
     
-    private static final    String IP      = "localhost";   //pi1.polklabs.com
+    private static final    String IP      = "pi1.polklabs.com";   //pi1.polklabs.com
     private static final    int    PORT    = 3301;          //Server port
     private          String room;                    //Room the user joins
     private          String username;                //Users username
