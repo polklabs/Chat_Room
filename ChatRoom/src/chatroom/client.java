@@ -1,56 +1,112 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package chatroom;
 
 import java.io.*;
-import java.net.*;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
 
 /**
- *
- * @author polka
+ * Waits for message from the server
+ * @author Andrew Polk
+ * @version 0.1
  */
 public class client implements Runnable{
-    /**Th socket for the user*/
-    private Socket sock;
-    /**The stream to get messages from the server*/
-    private DataInputStream in;
+    
+    /***************************************************************************
+    * Public variables
+    ***************************************************************************/
+    
+    /***************************************************************************
+    * Private variables
+    ***************************************************************************/
+
+    private final DataInputStream in;
+    private final dataEncrypt     DE;
+    private final ChatRoom        parent;
+    
+    /***************************************************************************
+    * Constructor
+    ***************************************************************************/
     
     /**Constructor
      * opens a new input stream
-     * @param socket 
+     * @param parent parent instance
+     * @param in DataInputStream from main class
      */
-    public client(Socket socket){
-        sock = socket;
-        try{
-            in = new DataInputStream(sock.getInputStream());
-        }catch(IOException e){
-            System.out.println("::Could not start client listener.");
-        }
+    public client(ChatRoom parent, DataInputStream in){
+        this.parent = parent;
+        DE = parent.DE;
+        this.in = in;
     }
+    
+    /***************************************************************************
+    * Public methods
+    ***************************************************************************/
     
     /**Main method of the thread
      * Waits for messages and closes the connection/thread if the socket closes.
      */
     @Override
     public void run(){
-        try{
-            String message;
-            while(true){
-                message = in.readUTF()
-                        ;
+        String message;
+        boolean waitingForKeys = false;
+        
+        while(true){
+            try{
+                message = DE.decryptText(in.readUTF());
                 
-                if(message == null){
-                    System.out.println("::The connection has been closed.");
-                    return;
+                if(message != null){
+                    //Server updating keys
+                    String[] split = message.split(":", 2);
+                    if(split[0].equals("Server") && split.length > 1){
+                        if(waitingForKeys){
+                            if(!split[0].equals("*")){
+                                DE.userKeys.clear();
+                                int length = DE.getPublicKey().length();
+                                String publicKeys = split[1];
+                                for(int i = 0; i < parent.users.size(); i++){
+                                    DE.addPublicKey(parent.users.get(i), publicKeys.substring(i*length, (i+1)*length));
+                                }
+                            }
+                            waitingForKeys = false;
+                        }
+                        else if(split[1].charAt(0) == '/'){
+                            char temp = split[1].charAt(1);
+                            split[1] = split[1].substring(2);
+                            switch(temp){
+                                case '*':
+                                    parent.users.clear();
+                                    parent.users.addAll(Arrays.asList(split[1].split(";")));
+                                    waitingForKeys = true;
+                                    break;
+                                case '-':
+                                    parent.kicked = true;
+                                    return;
+                            }
+                        }else {
+                            //onProgressUpdate
+                            System.out.println("\r"+message);
+                        }
+                    }else{
+                        //onProgressUpdate
+                        System.out.println("\r"+message);
+                    }
                 }else{
-                    System.out.println("\r"+message);
+                    System.out.println("::The connection has been closed.");
+                    break;
                 }
+            }catch(IOException e){
+                System.out.println("::The connection has been closed.");
+                break;
+            }catch(NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e){
+                System.out.println("::Could not receive message.");
+                e.printStackTrace();
             }
-        }catch(IOException e){
-            System.out.println("::The connection has been closed.");
         }
+        
+        parent.closed = true;
     }
 }

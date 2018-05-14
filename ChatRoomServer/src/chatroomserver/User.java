@@ -1,19 +1,40 @@
 package chatroomserver;
 
+/**
+ * General Imports
+ */
 import java.io.*;
+import java.security.InvalidKeyException;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
 
 /**
  * Simple thread to get massage from user asynch and send it to all other users in the chat room.
- * @author polka
+ * @author Andrew Polk
  * @version 0.1
  */
 public class User extends Thread{
+    
+    /***************************************************************************
+    * Public variables
+    ***************************************************************************/
+    
+    public boolean kicked = false;
+    
+    /***************************************************************************
+    * Private variables
+    ***************************************************************************/
+    
     /**Parent chat room thread*/
     private ChatRoom room;
     /**Username of attached user*/
     private String username;
     /**Input from current user*/
     private DataInputStream in;
+    
+    /***************************************************************************
+    * Constructor
+    ***************************************************************************/
     
     /**
      * Constructor for listener thread
@@ -31,6 +52,10 @@ public class User extends Thread{
         }
     }
     
+    /***************************************************************************
+    * Public methods
+    ***************************************************************************/
+    
     /**
      * Main thread method.
      * Waits for input from user and sends it back to all other users
@@ -38,31 +63,78 @@ public class User extends Thread{
      */
     @Override
     public void run(){
-        try{
-            String message;
-            while(true){
-                //String m1 = in.readLine();
-                String m1 = in.readUTF();
+        //String message;
+        while(true){
+            try{
+                String message = in.readUTF();
                 
-                if(m1 == null){
+                if(kicked)
+                    return;
+                
+                if(message == null){
                     room.removeUser(username);
                     return;
                 }
                 
-                message = username+": "+m1;
+                byte[] m1 = room.DE.decryptBytes(message);
 
-                for(String user : room.users){
-                    if(!user.equals(username)){
-                        try{
-                            room.outs.get(user).writeUTF(message);
-                        }catch(IOException e){
-                            room.removeUser(user);
-                        }
-                    }
+                if(m1.length == 173){
+                    //For the server
+                    serverCommand(m1);
+                }else{
+                    broadCastData(m1);
                 }
+            }catch(IOException e){
+                room.removeUser(username);
+                break;
+            } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException ex) {
+                System.out.println(ex);
             }
-        }catch(IOException e){
-            room.removeUser(username);
         }
     }
+    
+    /***************************************************************************
+    * Private methods
+    ***************************************************************************/
+    
+    private void serverCommand(byte[] command) 
+            throws UnsupportedEncodingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+        
+        String mS = new String(room.DE.decrypt((new String(command, "UTF-8")).substring(1), room.keys.get(username)), "UTF-8");
+        if(mS.substring(0, 5).equals("/kick")){
+            int x = mS.lastIndexOf(" ");
+            String kickUser = mS.substring(x+1);
+            if(!kickUser.equals("")){
+                if(room.users.get(1).equals(username)){
+                    if(room.users.indexOf(kickUser) != -1)
+                        room.kickUser(kickUser);
+                    else
+                        room.messageOne("Server: \""+kickUser+"\" not in chat room.", username);
+                }else{
+                    if(room.users.indexOf(kickUser) != -1)
+                        room.messageOne("Server: \""+username+"\" has reported \""+kickUser+"\".", room.users.get(1));
+                }
+            }
+        }
+    }
+    
+    private void broadCastData(byte[] m1) 
+            throws UnsupportedEncodingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+        
+        for(String user : room.users){
+            if(!user.equals(username)){
+                try{
+                    if(!user.equals("Server")){
+                        room.outs.get(user).writeUTF(room.DE.encryptBytes(m1, room.keys.get(user), room.users.indexOf(username)));
+                    }
+                }catch(IOException e){
+                    room.removeUser(user);
+                }
+            }
+        }
+    }
+    
+    /***************************************************************************
+    * Static methods
+    ***************************************************************************/
 }
