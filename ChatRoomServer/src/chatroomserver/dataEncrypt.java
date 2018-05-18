@@ -38,6 +38,9 @@ public final class dataEncrypt {
     /**Public key, send to other users/server*/
     public PublicKey publicKey;
     
+    public static final String ALGORITHM = "RSA";
+    public static final String CIPHER_ALGORITHM = "RSA/ECB/PKCS1Padding";
+    
     /***************************************************************************
     * Private variables
     ***************************************************************************/
@@ -58,10 +61,10 @@ public final class dataEncrypt {
         this.keyGen = null;
         this.cipher = null;
         try{
-            this.keyGen = KeyPairGenerator.getInstance("RSA");
+            this.keyGen = KeyPairGenerator.getInstance(ALGORITHM);
             this.keyGen.initialize(keyLength);
             
-            this.cipher = Cipher.getInstance("RSA");
+            this.cipher = Cipher.getInstance(CIPHER_ALGORITHM);
             
             createKeys();
         }catch(NoSuchAlgorithmException | NoSuchPaddingException e){
@@ -255,7 +258,7 @@ public final class dataEncrypt {
     public static String PublicKeyToString(PublicKey pubKey) 
             throws NoSuchAlgorithmException, InvalidKeySpecException {
 
-        KeyFactory kf = KeyFactory.getInstance("RSA");
+        KeyFactory kf = KeyFactory.getInstance(ALGORITHM);
         X509EncodedKeySpec spec = kf.getKeySpec(pubKey, X509EncodedKeySpec.class);
         return Base64.encodeBase64String(spec.getEncoded());
     }
@@ -265,7 +268,7 @@ public final class dataEncrypt {
         
         byte[] data = Base64.decodeBase64(key);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(data);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
+        KeyFactory kf = KeyFactory.getInstance(ALGORITHM);
         return kf.generatePublic(spec);
     }
 }
