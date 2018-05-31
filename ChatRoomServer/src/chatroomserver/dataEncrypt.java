@@ -61,7 +61,7 @@ public final class dataEncrypt {
         this.keyGen = null;
         this.cipher = null;
         try{
-            this.keyGen = KeyPairGenerator.getInstance(ALGORITHM);
+            this.keyGen = KeyPairGenerator.getInstance("RSA");
             this.keyGen.initialize(keyLength);
             
             this.cipher = Cipher.getInstance(CIPHER_ALGORITHM);
@@ -258,7 +258,7 @@ public final class dataEncrypt {
     public static String PublicKeyToString(PublicKey pubKey) 
             throws NoSuchAlgorithmException, InvalidKeySpecException {
 
-        KeyFactory kf = KeyFactory.getInstance(ALGORITHM);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
         X509EncodedKeySpec spec = kf.getKeySpec(pubKey, X509EncodedKeySpec.class);
         return Base64.encodeBase64String(spec.getEncoded());
     }
@@ -268,7 +268,7 @@ public final class dataEncrypt {
         
         byte[] data = Base64.decodeBase64(key);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(data);
-        KeyFactory kf = KeyFactory.getInstance(ALGORITHM);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePublic(spec);
     }
 }

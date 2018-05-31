@@ -42,7 +42,9 @@ public class ChatRoom {
     * Private variables
     ***************************************************************************/
     
-    private static final    String IP      = "pi1.polklabs.com";   //pi1.polklabs.com
+    private static final      String IP    = "pi1.polklabs.com";
+    //private static final    String IP      = "169.231.10.204";   //pi1.polklabs.com
+    //private static final    String IP      = "192.168.0.16";
     private static final    int    PORT    = 3301;          //Server port
     private          String room;                    //Room the user joins
     private          String username;                //Users username
@@ -95,97 +97,6 @@ public class ChatRoom {
     /***************************************************************************
     * Public methods
     ***************************************************************************/
-    
-    /**
-     * TODO DELETE THIS IN THE ANDROID APP
-     * @throws Exception 
-     */
-    public void run() throws Exception{
-        while(true){
-            
-            init();
-            
-            // ALL MESSAGE FROM HERE ON ARE ENCRYPTED --------------------------
-            //------------------------------------------------------------------
-
-            //enterChatRoom() --------------------------------------------------
-            while(true){
-                while(true){
-                    System.out.print("::Enter chatroom name: ");
-                    room = inFromUser.readLine().trim();
-                    if(isValid(room))
-                        break;
-                }
-                out.writeUTF(DE.encryptText(room));
-
-                String newR;
-                if(!(newR = DE.decryptText(in.readUTF())).equals("NACK")){
-                    if(newR.equals("NEW")){
-                        System.out.println("::Chatroom \'"+room+"\' does not exist.");
-                        System.out.print("::Create chatroom?(y/n) ");
-                        if(inFromUser.readLine().toUpperCase().equals("Y")){
-                            out.writeUTF(DE.encryptText("ACK"));
-
-                            //enterPassword() Ask for password from user, hash password, send to server         
-                            System.out.print("Enter a password (optional): ");
-                            password = inFromUser.readLine();
-                            if(password.equals("")){
-                                System.out.println("::No password set.");
-                                out.writeUTF(DE.encryptText(""));
-                            }else{
-                                System.out.println("::Password set to \""+password+"\"");
-                                out.writeUTF(DE.encryptText(new String(dataEncrypt.getEncryptedPassword(password, room))));
-                            }
-                            //--------------------------------------------------------
-
-                            System.out.println("::Chatroom created.");
-                            break;
-                        }else{
-                            out.writeUTF(DE.encryptText("NACK"));
-                        }
-                    }else{
-                        //Ask for password from user, check hash against hash on server
-                        if(DE.decryptText(in.readUTF()).equals("PASSWORD")){
-                            while(true){    
-                                System.out.print("Enter chat room password: ");
-                                password = inFromUser.readLine();
-                                out.writeUTF(DE.encryptText(new String(dataEncrypt.getEncryptedPassword(password, room))));
-                                if(DE.decryptText(in.readUTF()).equals("ACK")){
-                                    break;
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-            //------------------------------------------------------------------
-            
-            //enterUsername() --------------------------------------------------
-            //Set of all usernames currently in the chat room, Set avoids duplicate name errors
-            Set<String> usernames = new HashSet<>(Arrays.asList(DE.decryptText(in.readUTF()).split(";")));    
-            
-            while(true){
-                System.out.print("::Enter a username: ");
-                username = inFromUser.readLine().trim();
-                if(isValid(username)){
-                    if(!usernames.contains(username) && !username.equals("")){
-                        break;
-                    }else{
-                        System.out.println("::Username taken/invalid.");
-                    }
-                }else{
-                    System.out.println("::Username invalid.");
-                }
-            }
-            out.writeUTF(DE.encryptText(username));
-            //------------------------------------------------------------------
-            
-            updateKeys(DE.getPublicKey());
-            startListener();
-            startMessenger();
-        }
-    }
      
     /**
      * TODO REPLACE THIS IN THE ANDROID APP
@@ -257,7 +168,8 @@ public class ChatRoom {
                 errorMessage = "Current SetupLevel: "+setupLevel+", Level 2 required.";
                 return false;
             }
-            if(newRm || DE.decryptText(in.readUTF()).equals("PASSWORD")){
+            String passMessage = DE.decryptText(in.readUTF());
+            if(newRm || passMessage.equals("PASSWORD")){
                 //Send password
                 if(password.equals("")){
                     out.writeUTF(DE.encryptText(""));
@@ -271,6 +183,10 @@ public class ChatRoom {
                         return false;
                     }
                 }
+            }else if(passMessage.equals("NO")){
+                sock.close();
+                errorMessage = "Trying to enter local chat room.";
+                return false;
             }
             setupLevel++;
             //******************************************************************

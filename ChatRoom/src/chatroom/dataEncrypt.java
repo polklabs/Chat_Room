@@ -76,7 +76,7 @@ public final class dataEncrypt {
         this.cipher = null;
         try{
             //Key gen
-            this.keyGen = KeyPairGenerator.getInstance(ALGORITHM);
+            this.keyGen = KeyPairGenerator.getInstance("RSA");
             this.keyGen.initialize(keyLength);
             
             //Encryption/Decryption
@@ -273,7 +273,7 @@ public final class dataEncrypt {
                 index = string.length();
             
             String msg1 = string.substring(start, index);
-            
+
             //Encrypt the bytes
             byte[] temp2 = cipher.doFinal(Base64.decodeBase64(msg1));
             byte[] newResult = new byte[result.length + temp2.length];
@@ -289,6 +289,7 @@ public final class dataEncrypt {
             if(start > string.length()-1)
                 break;
         }
+        
         return result;
     }
     
@@ -305,7 +306,7 @@ public final class dataEncrypt {
     public static String PublicKeyToString(PublicKey pubKey) 
             throws NoSuchAlgorithmException, InvalidKeySpecException {
         
-        KeyFactory kf = KeyFactory.getInstance(ALGORITHM);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
         X509EncodedKeySpec spec = kf.getKeySpec(pubKey, X509EncodedKeySpec.class);
         return Base64.encodeBase64String(spec.getEncoded());
     }
@@ -322,7 +323,7 @@ public final class dataEncrypt {
         
         byte[] data = Base64.decodeBase64(key);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(data);
-        KeyFactory kf = KeyFactory.getInstance(ALGORITHM);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePublic(spec);
     }
     

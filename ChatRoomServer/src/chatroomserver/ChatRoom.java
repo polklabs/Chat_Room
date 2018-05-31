@@ -49,6 +49,11 @@ public class ChatRoom extends Thread {
     /**The hash of the password to allow new people to enter*/
     public String   passwordHash;
     
+    public boolean isUnlisted = false;
+    public boolean isLocal = false;
+    public String state = "";
+    public String city = "";
+    
     /***************************************************************************
     * Private variables
     ***************************************************************************/

@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import com.maxmind.geoip2.*;
+import com.maxmind.geoip2.exception.GeoIp2Exception;
 
 /**
  * Main class, listens for incoming connections and sets up the new user.
@@ -28,13 +30,18 @@ public class ChatRoomServer {
     /**Dictionary of all the chat rooms*/
     public static Map<String, ChatRoom> rooms = new HashMap<>();
     
+    public static Map<String, Map<String, ArrayList<String>>> locals = new HashMap<>();
+    
     public static dataEncrypt DE;
+    
+    public static DatabaseReader dbReader;
     
     /***************************************************************************
     * Private variables
     ***************************************************************************/
     
     private static final    String          SERVER_IP   = "pi1.polklabs.com";
+    //private static final    String          SERVER_IP = "192.168.0.16";
     private static final    int             SERVER_PORT = 3301;
     private static final    int             MAX = 251;
     private static final    int             MAX_POPULAR = 10;
@@ -52,12 +59,19 @@ public class ChatRoomServer {
         //Generate Public Private key pair
         DE = new dataEncrypt(1024);
         
+        File database = new File("/home/pi/Downloads/GeoLite2-City.mmdb");
+        
+        try{
+            dbReader = new DatabaseReader.Builder(database).build();
+            System.out.println("Server started on: "+InetAddress.getByName(SERVER_IP)+":"+Integer.toString(SERVER_PORT));
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+        
         while(true){
             try{
                 //serverSock = new ServerSocket(SERVER_PORT);
                 serverSock = new ServerSocket(SERVER_PORT, 0, InetAddress.getByName(SERVER_IP));
-
-                System.out.println("Server started on: "+serverSock.getInetAddress()+":"+Integer.toString(serverSock.getLocalPort()));
 
                 error = false;
                 while(!error){
@@ -70,6 +84,7 @@ public class ChatRoomServer {
                                 newUser(sock);
                             }catch(Exception e){
                                 System.out.println("::Failed to add new user. "+e);
+                                e.printStackTrace();
                                 error = true;
                             }
                         }
@@ -92,6 +107,17 @@ public class ChatRoomServer {
      * @throws IOException Don't they all?
      */
     public static void newUser(Socket sock) throws Exception {
+        String city = "";
+        String state = "";
+        try{
+            state = dbReader.city(sock.getInetAddress()).getSubdivisions().get(0).getName();
+            city = dbReader.city(sock.getInetAddress()).getCity().getName();
+        }catch(GeoIp2Exception | IOException e){
+            e.printStackTrace();
+        }
+        
+        System.out.println(city);
+        
         DataOutputStream out = new DataOutputStream(sock.getOutputStream());
         DataInputStream in = new DataInputStream(sock.getInputStream());
 
@@ -116,8 +142,13 @@ public class ChatRoomServer {
         Collections.sort(listOfEntries, valueComparator);
         int i = 0;
         for(Entry<String, ChatRoom> pair : listOfEntries){
-            popRooms += pair.getKey()+" "+(pair.getValue().users.size()-1)+";";
-            i++;
+            if(!rooms.get(pair.getKey()).isUnlisted){
+                String lock = "O";
+                if(rooms.get(pair.getKey()).hasPassword)
+                    lock = "L";
+                popRooms += pair.getKey()+" "+(pair.getValue().users.size()-1)+" "+lock+";";
+                i++;
+            }
             if(i >= MAX_POPULAR){
                 break;
             }
@@ -125,6 +156,19 @@ public class ChatRoomServer {
         if(popRooms.length() > 0)
             popRooms = popRooms.substring(0, popRooms.length()-1);
         
+        //Get list of local rooms
+        popRooms += "/";
+        if(locals.containsKey(state) && locals.get(state).containsKey(city)){
+            for(String s : locals.get(state).get(city)){
+                System.out.println("Room name: "+s);
+                String lock = "O";
+                if(rooms.get(s).hasPassword)
+                    lock = "L";
+                popRooms += s+" "+(rooms.get(s).users.size()-1)+" "+lock+";";
+            }
+            if(locals.get(state).get(city).size() > 0)
+                popRooms = popRooms.substring(0, popRooms.length()-1);
+        }
         out.writeUTF(DE.encryptText(popRooms, pubKey));
         
         //Get room or new room
@@ -135,11 +179,18 @@ public class ChatRoomServer {
                 //Gets room thread and adds user to it
                 out.writeUTF(DE.encryptText("ACK", pubKey));
                 
+                //Lock out if locality doesnt match
+                if(rooms.get(room).isLocal){
+                    if(!state.equals(rooms.get(room).state) || !city.equals(rooms.get(room).city)){
+                        out.writeUTF(DE.encryptText("NO", pubKey));
+                    }
+                } 
                 //Ask for password if needed. Get hash from user, check against saved hash.
                 if(rooms.get(room).hasPassword){
                     out.writeUTF(DE.encryptText("PASSWORD", pubKey));
                     while(true){
                         String password = DE.decryptText(in.readUTF(), pubKey);
+                        
                         if(password.equals(rooms.get(room).passwordHash)){
                             out.writeUTF(DE.encryptText("ACK", pubKey));
                             break;
@@ -155,12 +206,35 @@ public class ChatRoomServer {
                 //Creates a new room
                 out.writeUTF(DE.encryptText("NEW", pubKey));
                 //TODO: fix chat room collision problem
-                if(DE.decryptText(in.readUTF(), pubKey).equals("ACK")){
+                String options = DE.decryptText(in.readUTF(), pubKey);
+                
+                if(options.substring(0, 3).equals("ACK")){
                     //Get password hash from user
                     String password = DE.decryptText(in.readUTF(), pubKey);
                     
                     ChatRoom newRm = new ChatRoom(room, password);
                     rooms.put(room, newRm);
+                    
+                    if(options.length() > 3){
+                        if(options.charAt(3) == 'Y'){
+                            newRm.isUnlisted = true;
+                            System.out.println("Unlisted Room");
+                        }
+                        if(options.charAt(4) == 'Y'){
+                            newRm.isLocal = true;
+                            if(!locals.containsKey(state)){
+                                locals.put(state, new HashMap<>());
+                            }
+                            if(!locals.get(state).containsKey(city)){
+                                locals.get(state).put(city, new ArrayList<>());
+                            }
+                            locals.get(state).get(city).add(room);
+                            newRm.isUnlisted = true;
+                            newRm.state = state;
+                            newRm.city = city;
+                            System.out.println("Local room");
+                        }
+                    }
                     
                     break;
                 }
@@ -168,6 +242,7 @@ public class ChatRoomServer {
         }
         
         //TODO: fix username collision problem
+        //Kinda fixed by the join method
         out.writeUTF(DE.encryptText(rooms.get(room).getUsers(), pubKey));
         String username = DE.decryptText(in.readUTF(), pubKey);
         
@@ -188,6 +263,9 @@ public class ChatRoomServer {
      * @param name Name of the chat room to be removed.
      */
     public static void removeRoom(String name){
+        try{
+            locals.get(rooms.get(name).state).get(rooms.get(name).city).remove(name);
+        }catch(Exception e){}
         rooms.remove(name);
     }
     
