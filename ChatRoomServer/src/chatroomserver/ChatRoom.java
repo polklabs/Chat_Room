@@ -28,7 +28,7 @@ public class ChatRoom extends Thread {
     ***************************************************************************/
     
     /**Name of the chat room*/ 
-    public final    String name;
+    public    String name;
     /**List of all the usernames in the chat room*/
     public final    ArrayList<String> users = new ArrayList<>();
     /**Dictionary of all the sockets*/

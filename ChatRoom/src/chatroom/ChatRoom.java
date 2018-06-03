@@ -321,6 +321,8 @@ public class ChatRoom {
         users.add("Server");
         DE.addPublicKey("Server", serverPublicKey);
         
+        out.writeUTF(DE.encryptText("California:Goleta"));
+        
         String popularString = DE.decryptText(in.readUTF());
         
         setupLevel++;

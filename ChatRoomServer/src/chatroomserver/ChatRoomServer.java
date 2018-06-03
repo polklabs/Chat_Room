@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import com.maxmind.geoip2.*;
-import com.maxmind.geoip2.exception.GeoIp2Exception;
 
 /**
  * Main class, listens for incoming connections and sets up the new user.
@@ -33,8 +31,6 @@ public class ChatRoomServer {
     public static Map<String, Map<String, ArrayList<String>>> locals = new HashMap<>();
     
     public static dataEncrypt DE;
-    
-    public static DatabaseReader dbReader;
     
     /***************************************************************************
     * Private variables
@@ -59,14 +55,7 @@ public class ChatRoomServer {
         //Generate Public Private key pair
         DE = new dataEncrypt(1024);
         
-        File database = new File("/home/pi/Downloads/GeoLite2-City.mmdb");
-        
-        try{
-            dbReader = new DatabaseReader.Builder(database).build();
-            System.out.println("Server started on: "+InetAddress.getByName(SERVER_IP)+":"+Integer.toString(SERVER_PORT));
-        }catch(IOException e){
-            e.printStackTrace();
-        }
+        System.out.println("Server started on: "+SERVER_IP+":"+Integer.toString(SERVER_PORT));
         
         while(true){
             try{
@@ -83,8 +72,8 @@ public class ChatRoomServer {
                             try{
                                 newUser(sock);
                             }catch(Exception e){
-                                System.out.println("::Failed to add new user. "+e);
-                                e.printStackTrace();
+                                System.out.println("::Failed to add new user.");
+                                //e.printStackTrace();
                                 error = true;
                             }
                         }
@@ -109,14 +98,7 @@ public class ChatRoomServer {
     public static void newUser(Socket sock) throws Exception {
         String city = "";
         String state = "";
-        try{
-            state = dbReader.city(sock.getInetAddress()).getSubdivisions().get(0).getName();
-            city = dbReader.city(sock.getInetAddress()).getCity().getName();
-        }catch(GeoIp2Exception | IOException e){
-            e.printStackTrace();
-        }
         
-        System.out.println(city);
         
         DataOutputStream out = new DataOutputStream(sock.getOutputStream());
         DataInputStream in = new DataInputStream(sock.getInputStream());
@@ -129,6 +111,10 @@ public class ChatRoomServer {
         
         // ALL MESSAGE FROM HERE ON ARE ENCRYPTED ------------------------------
         //----------------------------------------------------------------------
+        
+        String[] loc = DE.decryptText(in.readUTF(), pubKey).split(":");
+        state = loc[0];
+        city = loc[1];
         
         String popRooms = "";
         
@@ -160,7 +146,6 @@ public class ChatRoomServer {
         popRooms += "/";
         if(locals.containsKey(state) && locals.get(state).containsKey(city)){
             for(String s : locals.get(state).get(city)){
-                System.out.println("Room name: "+s);
                 String lock = "O";
                 if(rooms.get(s).hasPassword)
                     lock = "L";
@@ -213,28 +198,28 @@ public class ChatRoomServer {
                     String password = DE.decryptText(in.readUTF(), pubKey);
                     
                     ChatRoom newRm = new ChatRoom(room, password);
-                    rooms.put(room, newRm);
                     
                     if(options.length() > 3){
                         if(options.charAt(3) == 'Y'){
                             newRm.isUnlisted = true;
-                            System.out.println("Unlisted Room");
                         }
                         if(options.charAt(4) == 'Y'){
-                            newRm.isLocal = true;
-                            if(!locals.containsKey(state)){
-                                locals.put(state, new HashMap<>());
+                            if(!city.equals("Unknown") && !state.equals("Unknown")){
+                                newRm.isLocal = true;
+                                if(!locals.containsKey(state)){
+                                    locals.put(state, new HashMap<>());
+                                }
+                                if(!locals.get(state).containsKey(city)){
+                                    locals.get(state).put(city, new ArrayList<>());
+                                }
+                                locals.get(state).get(city).add(room);
+                                newRm.isUnlisted = true;
                             }
-                            if(!locals.get(state).containsKey(city)){
-                                locals.get(state).put(city, new ArrayList<>());
-                            }
-                            locals.get(state).get(city).add(room);
-                            newRm.isUnlisted = true;
-                            newRm.state = state;
-                            newRm.city = city;
-                            System.out.println("Local room");
                         }
                     }
+                    newRm.state = state;
+                    newRm.city = city;
+                    rooms.put(room, newRm);
                     
                     break;
                 }
