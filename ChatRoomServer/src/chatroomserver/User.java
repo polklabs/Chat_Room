@@ -66,15 +66,13 @@ public class User extends Thread{
         //String message;
         while(true){
             try{
-                String message = in.readUTF();
+                int lengthData = in.readInt();
+                byte[] b = new byte[lengthData];
+                in.readFully(b);
+                String message = new String(b, "UTF-8");
                 
                 if(kicked)
                     return;
-                
-                if(message == null){
-                    room.removeUser(username);
-                    return;
-                }
                 
                 byte[] m1 = room.DE.decryptBytes(message);
 
@@ -85,7 +83,8 @@ public class User extends Thread{
                     broadCastData(m1);
                 }
             }catch(IOException e){
-                room.removeUser(username);
+                if(!kicked)
+                    room.removeUser(username);
                 break;
             } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException ex) {
                 System.out.println(ex);
@@ -125,7 +124,10 @@ public class User extends Thread{
             if(!user.equals(username)){
                 try{
                     if(!user.equals("Server")){
-                        room.outs.get(user).writeUTF(room.DE.encryptBytes(m1, room.keys.get(user), room.users.indexOf(username)));
+                        byte[] s = room.DE.encryptBytes(m1, room.keys.get(user), room.users.indexOf(username)).getBytes();
+                        room.outs.get(user).writeInt(s.length);
+                        room.outs.get(user).write(s);
+                        room.outs.get(user).flush();
                     }
                 }catch(IOException e){
                     room.removeUser(user);
@@ -133,8 +135,4 @@ public class User extends Thread{
             }
         }
     }
-    
-    /***************************************************************************
-    * Static methods
-    ***************************************************************************/
 }

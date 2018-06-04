@@ -10,7 +10,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import javax.crypto.BadPaddingException;
@@ -21,7 +20,7 @@ import javax.crypto.IllegalBlockSizeException;
  * @author Andrew Polk
  * @version 0.1
  */
-public class ChatRoom extends Thread {
+public class ChatRoom {
     
     /***************************************************************************
     * Public variables
@@ -60,7 +59,6 @@ public class ChatRoom extends Thread {
     
     //Holds the listener thread for each user
     private final Map<String, User> threads = new HashMap<>();
-    private final int               timeToStayOpen; //Time in seconds, Min=10, Max=3600
     
     /***************************************************************************
     * Constructor
@@ -74,7 +72,6 @@ public class ChatRoom extends Thread {
     public ChatRoom(String roomName, String password){
         name = roomName;
         passwordHash = password;
-        timeToStayOpen = 10;
         
         if(!password.equals("")){
             hasPassword = true;
@@ -91,23 +88,6 @@ public class ChatRoom extends Thread {
     ***************************************************************************/
     
     /**
-     * The main function of the thread. Exiting this function closes the thread.
-     * Checks to see if the room is empty every X seconds and returns if it is.
-     */
-    @Override
-    public void run(){
-        isNew = false;
-        System.out.println(name+"::Running room.");
-        while(users.size() > 1){
-            try{
-                TimeUnit.SECONDS.sleep(timeToStayOpen);
-            }catch(InterruptedException e){}
-        }
-        close();
-        System.out.println(name+"::Closed room.");
-    }
-    
-    /**
      * Sends a message to all users in the chat room.
      * @param message The message that you want to send.
      * @param print if the server should print the message to the log
@@ -119,9 +99,13 @@ public class ChatRoom extends Thread {
         users.forEach((user) -> {
             try{
                 if(!user.equals("Server")){
-                    outs.get(user).writeUTF(DE.encryptText(message, keys.get(user)));
+                    byte[] s = DE.encryptText(message, keys.get(user)).getBytes();
+                    outs.get(user).writeInt(s.length);
+                    outs.get(user).write(s);
+                    outs.get(user).flush();
                 }
             }catch(IOException e){
+                System.out.println(e);
                 removeUser(user);
             }catch(InvalidKeyException | BadPaddingException | IllegalBlockSizeException e){
                 System.out.println(e);
@@ -137,7 +121,10 @@ public class ChatRoom extends Thread {
     public void messageOne(String message, String user){
         try{
             if(!user.equals("Server")){
-                outs.get(user).writeUTF(DE.encryptText(message, keys.get(user)));
+                byte[] s = DE.encryptText(message, keys.get(user)).getBytes();
+                outs.get(user).writeInt(s.length);
+                outs.get(user).write(s);
+                outs.get(user).flush();
             }
         }catch(IOException e){
             removeUser(user);
@@ -153,13 +140,13 @@ public class ChatRoom extends Thread {
      */
     public void addUser(String username, Socket newSock, String publicKey) {
         try{
+            messageAll("Server: \""+username+"\" has joined.", true);
             outs.put(username, new DataOutputStream(newSock.getOutputStream()));
             socks.put(username, newSock);
             users.add(username);
             keys.put(username, dataEncrypt.stringToPublicKey(publicKey));
             newClientThread(username);
-            outs.get(username).writeUTF(DE.encryptText("Server: Welcome to \""+name+"\"", keys.get(username)));
-            messageAll("Server: \""+username+"\" has joined.", true);
+            messageOne("Server: Welcome to \""+name+"\"", username);
             
             //Message all new userList and keys
             messageAll("Server:/*"+getUsers(), false);
@@ -178,7 +165,7 @@ public class ChatRoom extends Thread {
                 outs.remove(username);
             }
             System.out.println(e);
-        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | InvalidKeySpecException ex) {
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException ex) {
             System.out.println(ex);
         }
     }
@@ -193,6 +180,8 @@ public class ChatRoom extends Thread {
         socks.remove(username);
         threads.remove(username);
         keys.remove(username);
+        
+        System.out.println(Thread.currentThread().getStackTrace()[2].getLineNumber());
         
         messageAll("Server: \""+username+"\" has left.", true);
         
@@ -215,9 +204,11 @@ public class ChatRoom extends Thread {
      */
     public void kickUser(String username){
         if(username.equals(users.get(1))){
-            messageOne("Server: You cannot kick yourself. Enter \"/close\" to leave the chatroom.", users.get(1));
+            messageOne("Server: You cannot kick yourself.", users.get(1));
             return;
         }
+        
+        threads.get(username).kicked = true;
         
         messageOne("Server: You have been kicked from this chat room.", username);
         messageOne("Server:/-", username);
@@ -269,19 +260,9 @@ public class ChatRoom extends Thread {
     * Private methods
     ***************************************************************************/
     
-    /**Closes the chat room and removes its name from this list in*/
-    private void close(){
-        System.out.println(name+"::Closing room.");
-        ChatRoomServer.removeRoom(name);
-    }
-    
     /**Creates a new thread to listen for massages from a specific client.*/
     private void newClientThread(String username){
         threads.put(username, new User(this, username));
         threads.get(username).start();
     }
-    
-    /***************************************************************************
-    * Static methods
-    ***************************************************************************/
 }

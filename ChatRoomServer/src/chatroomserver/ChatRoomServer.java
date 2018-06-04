@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Main class, listens for incoming connections and sets up the new user.
@@ -37,7 +38,6 @@ public class ChatRoomServer {
     ***************************************************************************/
     
     private static final    String          SERVER_IP   = "pi1.polklabs.com";
-    //private static final    String          SERVER_IP = "192.168.0.16";
     private static final    int             SERVER_PORT = 3301;
     private static final    int             MAX = 251;
     private static final    int             MAX_POPULAR = 10;
@@ -57,9 +57,32 @@ public class ChatRoomServer {
         
         System.out.println("Server started on: "+SERVER_IP+":"+Integer.toString(SERVER_PORT));
         
+        //Thead to 
+        (new Thread() {
+            @Override
+            public void run(){
+                while(true){
+                    try{
+                        TimeUnit.SECONDS.sleep(10);
+                        for(Entry<String, ChatRoom> pair : rooms.entrySet()){
+                            if(pair.getValue().users.size() <= 1){
+                                System.out.println(pair.getKey()+"::Closing room");
+                                try{
+                                    locals.get(pair.getValue().state).get(pair.getValue().city).remove(pair.getKey());
+                                }catch(Exception e){
+                                }
+                                rooms.remove(pair.getKey());
+                            }
+                        }
+                    }catch(InterruptedException e){
+                        System.out.println("Outer: "+e);
+                    }
+                }
+            }
+        }).start();
+        
         while(true){
             try{
-                //serverSock = new ServerSocket(SERVER_PORT);
                 serverSock = new ServerSocket(SERVER_PORT, 0, InetAddress.getByName(SERVER_IP));
 
                 error = false;
@@ -72,8 +95,7 @@ public class ChatRoomServer {
                             try{
                                 newUser(sock);
                             }catch(Exception e){
-                                System.out.println("::Failed to add new user.");
-                                //e.printStackTrace();
+                                //System.out.println("::Failed to add new user.");
                                 error = true;
                             }
                         }
@@ -96,8 +118,8 @@ public class ChatRoomServer {
      * @throws IOException Don't they all?
      */
     public static void newUser(Socket sock) throws Exception {
-        String city = "";
-        String state = "";
+        String city;
+        String state;
         
         
         DataOutputStream out = new DataOutputStream(sock.getOutputStream());
@@ -236,9 +258,9 @@ public class ChatRoomServer {
         
         if(rooms.get(room).users.size() < MAX){
             rooms.get(room).addUser(username, sock, clientPublicKey);
-            if(rooms.get(room).isNew){
+            /*if(rooms.get(room).isNew){
                 rooms.get(room).start();
-            }
+            }*/
         }else{
             sock.close();
         }
@@ -248,10 +270,10 @@ public class ChatRoomServer {
      * @param name Name of the chat room to be removed.
      */
     public static void removeRoom(String name){
-        try{
+        /*try{
             locals.get(rooms.get(name).state).get(rooms.get(name).city).remove(name);
         }catch(Exception e){}
-        rooms.remove(name);
+        rooms.remove(name);*/
     }
     
     /***************************************************************************
