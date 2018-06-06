@@ -8,8 +8,6 @@ package chipserver;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.security.InvalidKeyException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import org.json.*;
@@ -62,6 +60,7 @@ public class User extends Thread{
                 
             }catch(IOException e){
                 room.removeUser(username);
+                break;
             }
         }
         
@@ -88,7 +87,7 @@ public class User extends Thread{
         obj.put("body", data);
         
         for(String s : room.users){
-            if(!s.equals("Server") || !s.equals(username)){
+            if(!s.equals("Server") && !s.equals(username)){
                 try{
                     JSONObject message = new JSONObject();
                     message.put("type", "message");
@@ -111,7 +110,7 @@ public class User extends Thread{
                 int x = data.lastIndexOf(" ");
                 String kickUser = data.substring(x+1);
                 if(room.users.contains(kickUser)){
-                    if(mod)
+                    if(mod && !kickUser.equals(username) && !kickUser.equals("Server"))
                         room.kickUser(kickUser);
                     else
                         room.messageOne("\""+username+"\" has reported \""+kickUser+"\".", room.users.get(1));

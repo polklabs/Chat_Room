@@ -17,8 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import org.json.*;
@@ -132,6 +130,7 @@ public class ChatRoom {
     }
     
     public void addUser(String username, Socket sock, PublicKey key){
+        System.out.println(roomName+"::Adding "+username);
         try{
             messageAll("\""+username+"\" has joined.", users.get(0));
 
@@ -162,6 +161,7 @@ public class ChatRoom {
     }
     
     public void removeUser(String username){
+        System.out.println(roomName+"::Removing "+username);
         boolean isMod = users.indexOf(username)==1;
         
         users.remove(username);
@@ -175,7 +175,7 @@ public class ChatRoom {
         
         if(isMod && users.size() > 1){
             messageOne("You are the new Moderator. Open the sidebar to kick users from the chat room.", users.get(1));
-            threads.get(username).mod = true;
+            threads.get(users.get(1)).mod = true;
         }
             
         try{
@@ -187,6 +187,7 @@ public class ChatRoom {
     }
     
     public void kickUser(String username){
+        System.out.println(roomName+"::Kicking "+username);
         threads.get(username).kicked = true;
         
         messageOne("You have been kicked from this chat room.", username);

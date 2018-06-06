@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -78,16 +79,20 @@ public class ChipServer {
                         
                         lock.lock();
                         try{
-                            for(Entry<String, ChatRoom> pair : ROOMS.entrySet()){
+                            boolean change = false;
+                            Iterator<Map.Entry<String, ChatRoom>> itr = ROOMS.entrySet().iterator();
+                            while(itr.hasNext()){
+                                Map.Entry<String, ChatRoom> pair = itr.next();
                                 if(pair.getValue().users.size() <= 1){
                                     try{
                                         LOCALS.get(pair.getValue().state).get(pair.getValue().city).remove(pair.getKey());
                                     }catch(Exception e){}
-                                    ROOMS.remove(pair.getKey());
+                                    itr.remove();
                                     System.out.println(pair.getKey()+"::Closed");
-                                    ChipServer.sortPopular();
+                                    change = true;
                                 }
                             }
+                            if(change) ChipServer.sortPopular();
                         }catch(Exception e){
                             System.out.println(e);
                         }finally{
@@ -121,6 +126,9 @@ public class ChipServer {
                             }catch(IOException | InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException | BadPaddingException | IllegalBlockSizeException e){
                                 System.out.println(e);
                                 e.printStackTrace();
+                                try{
+                                    sock.close();
+                                }catch(Exception ex){}
                                 restart = true;
                             }
                         }
@@ -275,19 +283,25 @@ public class ChipServer {
             int v2 = e2.getValue().users.size()-1;
             return v2 - v1;
         };
-        Set<Entry<String, ChatRoom>> entries = ROOMS.entrySet();
-        ArrayList<Entry<String, ChatRoom>> listOfEntries = new ArrayList<>(entries);
-        Collections.sort(listOfEntries, valueComparator);
-        int i = 0;
-        SORTED_POPULAR.clear();
-        for(Entry<String, ChatRoom> pair : listOfEntries){
-            if(!pair.getValue().unlisted){
-                SORTED_POPULAR.add(pair.getKey());
+        
+        lock.lock();
+        try{
+            Set<Entry<String, ChatRoom>> entries = ROOMS.entrySet();
+            ArrayList<Entry<String, ChatRoom>> listOfEntries = new ArrayList<>(entries);
+            Collections.sort(listOfEntries, valueComparator);
+            int i = 0;
+            SORTED_POPULAR.clear();
+            for(Entry<String, ChatRoom> pair : listOfEntries){
+                if(!pair.getValue().unlisted){
+                    SORTED_POPULAR.add(pair.getKey());
+                }
+                i++;
+                if(i > MAX_POPULAR){
+                    break;
+                }
             }
-            i++;
-            if(i > MAX_POPULAR){
-                break;
-            }
+        }finally{
+            lock.unlock();
         }
     }
     
