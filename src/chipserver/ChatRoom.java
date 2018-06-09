@@ -93,6 +93,7 @@ public class ChatRoom {
         try{
             JSONObject message = new JSONObject();
             message.put("type", "text");
+            message.put("private", false);
             message.put("sender", from);
 
             String body = DE.encryptOnce(data, null, true); 
@@ -151,9 +152,11 @@ public class ChatRoom {
             messageOne("Welcome to \""+roomName+"\"!", username);
 
             if(username.equals(users.get(1))){
-                messageOne("You are the Moderator. Open the sidebar to kick users from the chat room.", username);
+                messageOne("You are the Moderator.", username);
                 threads.get(username).mod = true;
             }
+            messageOne("Open the sidebar to send private messages and to kick/report users in the chat room.", username);
+            
         }catch(IOException e){
             removeUser(username);
         }
@@ -174,7 +177,7 @@ public class ChatRoom {
         messageAll("\""+username+"\" has left.", users.get(0));
         
         if(isMod && users.size() > 1){
-            messageOne("You are the new Moderator. Open the sidebar to kick users from the chat room.", users.get(1));
+            messageOne("You are the new Moderator.", users.get(1));
             threads.get(users.get(1)).mod = true;
         }
             

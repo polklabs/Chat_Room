@@ -83,6 +83,7 @@ public class User extends Thread{
     public void image(String data){
         JSONObject obj = new JSONObject();
         obj.put("type", "image");
+        obj.put("private", false);
         obj.put("sender", username);
         obj.put("body", data);
         
@@ -112,8 +113,10 @@ public class User extends Thread{
                 if(room.users.contains(kickUser)){
                     if(mod && !kickUser.equals(username) && !kickUser.equals("Server"))
                         room.kickUser(kickUser);
-                    else
+                    else if(!mod){
                         room.messageOne("\""+username+"\" has reported \""+kickUser+"\".", room.users.get(1));
+                        room.messageOne("You have reported \""+kickUser+"\" to \""+room.users.get(1)+"\"", username);
+                    }
                 }
         }
     }
